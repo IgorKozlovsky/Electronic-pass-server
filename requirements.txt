@@ -1,0 +1,13 @@
+Flask>=1.1.2
+Flask-SQLAlchemy>=2.4.4
+Flask-Migrate>=2.5.3
+Flask-RESTful>=0.3.8
+flask-marshmallow>=0.14.0
+marshmallow-sqlalchemy>=0.23.1
+psycopg2>=2.8.6
+flask-jwt-extended>=3.25.0
+Werkzeug>=1.0.1
+Flasgger>=0.9.5
+python-dotenv==1.0.0
+flask_cors==4.0.0
+Flask-Bcrypt==1.0.1
