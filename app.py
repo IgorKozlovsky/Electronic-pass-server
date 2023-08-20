@@ -1,3 +1,5 @@
+from datetime import timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 import os
 from flask import Flask
 from database.db import db
@@ -6,17 +8,32 @@ from dotenv import load_dotenv
 from utils.errors import BadRequestException
 from utils.http import bad_request, not_found, not_allowed, internal_error
 from flask import request, jsonify
-from models.models import Student
+from models.models import Student, QRCode
 from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
-from flask_login import LoginManager, login_user, logout_user, login_required
+from flask_login import LoginManager, logout_user, login_required
 import jwt
 from datetime import datetime, timedelta
 import base64
+import qrcode
+import uuid
 
 login_manager = LoginManager()
 
 load_dotenv()
+
+
+def remove_expired_qrcodes():
+    with app.app_context():
+        expiration_time = datetime.utcnow() - timedelta(seconds=30)
+        expired_qrs = QRCode.query.filter(
+            QRCode.created_at < expiration_time).all()
+
+        for qr in expired_qrs:
+            os.remove(f"assets/qrcodes/{qr.uuid}.png")
+            db.session.delete(qr)
+
+        db.session.commit()
 
 
 def create_app():
@@ -28,6 +45,11 @@ def create_app():
     Migrate(app, db)
     app.bcrypt = Bcrypt(app)
     login_manager.init_app(app)
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=remove_expired_qrcodes,
+                      trigger="interval", seconds=20)
+    scheduler.start()
 
     @login_manager.user_loader
     def load_user(student_id):
@@ -84,6 +106,53 @@ def create_app():
         db.session.commit()
 
         return jsonify({"message": "Students created successfully"}), 201
+
+    @app.route('/generate_qr', methods=['POST'])
+    def generate_qr():
+        student_id = request.json['student_id']
+
+        existing_qr = QRCode.query.filter_by(student_id=student_id).first()
+        if existing_qr:
+            os.remove(f"assets/qrcodes/{existing_qr.uuid}.png")
+            db.session.delete(existing_qr)
+            db.session.commit()
+
+        unique_id = str(uuid.uuid4())
+        img = qrcode.make(unique_id)
+
+        img_path = f"assets/qrcodes/{unique_id}.png"
+        img.save(img_path)
+
+        new_qr = QRCode(uuid=unique_id, student_id=request.json['student_id'], created_at=datetime.utcnow())
+        db.session.add(new_qr)
+        db.session.commit()
+
+        return jsonify({"message": "QR code generated", "qr_path": img_path, "uuid": unique_id}), 200
+
+    @app.route('/scan_qr', methods=['POST'])
+    def scan_qr():
+        scanned_uuid = request.json['uuid']
+
+        qr_entry = QRCode.query.filter_by(uuid=scanned_uuid).first()
+        if not qr_entry or qr_entry.status != "pending":
+            return jsonify({"message": "Invalid or already scanned QR code."}), 400
+
+        qr_entry.status = "scanned"
+        qr_entry.scanned_at = datetime.utcnow()
+        db.session.delete(qr_entry)
+        db.session.commit()
+
+        os.remove(f"assets/qrcodes/{scanned_uuid}.png")
+
+        return jsonify({"message": "QR code scanned and deleted successfully"})
+
+    @app.route('/check_qr_status/<uuid>', methods=['GET'])
+    def check_qr_status(uuid):
+        qr_entry = QRCode.query.filter_by(uuid=uuid).first()
+        if not qr_entry:
+            return jsonify({"message": "Invalid QR code."}), 400
+
+        return jsonify({"status": qr_entry.status}), 200
 
     @app.errorhandler(BadRequestException)
     def bad_request_exception(e):

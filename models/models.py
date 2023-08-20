@@ -1,6 +1,7 @@
 from database.db import db
 from flask import current_app
 from flask_login import UserMixin
+from datetime import datetime
 
 
 class Student(db.Model, UserMixin):
@@ -30,3 +31,13 @@ class Student(db.Model, UserMixin):
     login = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     photo = db.Column(db.String(250), nullable=False)
+
+
+class QRCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+    student = db.relationship('Student', backref=db.backref('qr_codes', lazy=True))
+    uuid = db.Column(db.String(36), nullable=False, unique=True)
+    status = db.Column(db.String(50), nullable=False, default="pending")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    scanned_at = db.Column(db.DateTime, nullable=True)
