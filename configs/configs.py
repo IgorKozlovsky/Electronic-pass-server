@@ -6,6 +6,7 @@ class Config(object):
     TESTING = False
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SECRET_KEY = "sadabfhg123"
 
 
 class ProductionConfig(Config):

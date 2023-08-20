@@ -1,6 +1,6 @@
 from database.db import db
 from typing import List, Union
-from models.models import User
+from models.models import Student
 from flask import Response, jsonify
 from werkzeug.wrappers import Response as ResponseType
 
@@ -13,7 +13,7 @@ def ok(resource: Union[db.Model, List[db.Model]]) -> ResponseType:
     @param resource: Model or a list of models to be serialized
     """
 
-    if isinstance(resource, User):
+    if isinstance(resource, Student):
         return jsonify(resource.serialize())
     return jsonify([res.serialize() for res in resource])
 
@@ -65,9 +65,9 @@ def not_allowed() -> ResponseType:
     return Response(response="Method not allowed.", status=405)
 
 
-def internal_error() -> ResponseType:
+def internal_error(e) -> ResponseType:
     """
     Helper function that returns an http status code 500.
     """
 
-    return Response(response="Internal Error.", status=500)
+    return Response(response=f"Internal Error. {e}", status=500)
