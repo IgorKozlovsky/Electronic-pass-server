@@ -12,6 +12,7 @@ from flask_migrate import Migrate
 from flask_login import LoginManager, login_user, logout_user, login_required
 import jwt
 from datetime import datetime, timedelta
+import base64
 
 login_manager = LoginManager()
 
@@ -40,17 +41,24 @@ def create_app():
         student = Student.query.filter_by(login=data.get("login")).first()
 
         if student and student.check_password(data.get("password")):
-            login_user(student, remember=remember)
+            with open(f"assets/images/{student.photo}", "rb") as img_file:
+                image_data = base64.b64encode(img_file.read()).decode('utf-8')
+
+            response = {
+                "message": "Login successful",
+                "student": student.as_dict(),
+                "image_data": image_data
+            }
 
             if remember:
                 token = jwt.encode({
                     'student_id': student.id,
                     'exp': datetime.utcnow() + timedelta(days=3)
                 }, app.config['SECRET_KEY'])
+                response["token"] = token
 
-                return jsonify({"message": "Login successful", "student": student.as_dict(), "token": token}), 200
+            return jsonify(response), 200
 
-            return jsonify({"message": "Login successful", "student": student.as_dict()}), 200
         else:
             raise BadRequestException("Invalid credentials")
 
