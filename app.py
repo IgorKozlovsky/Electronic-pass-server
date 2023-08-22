@@ -30,10 +30,14 @@ def remove_expired_qrcodes():
             QRCode.created_at < expiration_time).all()
 
         for qr in expired_qrs:
-            os.remove(f"assets/qrcodes/{qr.uuid}.png")
-            db.session.delete(qr)
+            file_path = f"assets/qrcodes/{qr.uuid}.png"
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                db.session.delete(qr)
 
         db.session.commit()
+
 
 
 def create_app():
@@ -106,6 +110,21 @@ def create_app():
         db.session.commit()
 
         return jsonify({"message": "Students created successfully"}), 201
+    
+    @app.route('/student/<int:student_id>', methods=['GET'])
+    def get_student_by_id(student_id):
+        student = Student.query.get(student_id)
+        
+        if not student:
+            return jsonify({"message": "Student not found"}), 404
+
+        with open(f"assets/images/{student.photo}", "rb") as img_file:
+            image_data = base64.b64encode(img_file.read()).decode('utf-8')
+
+        student_data = student.as_dict()
+        student_data["image_data"] = image_data
+
+        return jsonify(student_data), 200
 
     @app.route('/generate_qr', methods=['POST'])
     def generate_qr():
