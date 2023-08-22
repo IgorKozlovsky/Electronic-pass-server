@@ -15,3 +15,6 @@ Flask-Login
 pyjwt
 qrcode[pil]
 Flask-APScheduler
+pyWinhook 
+pyautogui 
+requests

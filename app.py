@@ -25,19 +25,18 @@ load_dotenv()
 
 def remove_expired_qrcodes():
     with app.app_context():
-        expiration_time = datetime.utcnow() - timedelta(seconds=30)
+        expiration_time = datetime.utcnow() - timedelta(seconds=3000)
         expired_qrs = QRCode.query.filter(
             QRCode.created_at < expiration_time).all()
 
         for qr in expired_qrs:
             file_path = f"assets/qrcodes/{qr.uuid}.png"
-            
+
             if os.path.exists(file_path):
                 os.remove(file_path)
                 db.session.delete(qr)
 
         db.session.commit()
-
 
 
 def create_app():
@@ -70,20 +69,17 @@ def create_app():
             with open(f"assets/images/{student.photo}", "rb") as img_file:
                 image_data = base64.b64encode(img_file.read()).decode('utf-8')
 
-            response = {
-                "message": "Login successful",
-                "student": student.as_dict(),
-                "image_data": image_data
-            }
+            student_data = student.as_dict()
+            student_data["image_data"] = image_data
 
             if remember:
                 token = jwt.encode({
                     'student_id': student.id,
                     'exp': datetime.utcnow() + timedelta(days=3)
                 }, app.config['SECRET_KEY'])
-                response["token"] = token
+                student_data["token"] = token
 
-            return jsonify(response), 200
+            return jsonify(student_data), 200
 
         else:
             raise BadRequestException("Invalid credentials")
@@ -110,11 +106,11 @@ def create_app():
         db.session.commit()
 
         return jsonify({"message": "Students created successfully"}), 201
-    
+
     @app.route('/student/<int:student_id>', methods=['GET'])
     def get_student_by_id(student_id):
         student = Student.query.get(student_id)
-        
+
         if not student:
             return jsonify({"message": "Student not found"}), 404
 
@@ -149,11 +145,9 @@ def create_app():
 
         return jsonify({"message": "QR code generated", "qr_path": img_path, "uuid": unique_id}), 200
 
-    @app.route('/scan_qr', methods=['POST'])
-    def scan_qr():
-        scanned_uuid = request.json['uuid']
-
-        qr_entry = QRCode.query.filter_by(uuid=scanned_uuid).first()
+    @app.route('/scan_qr/<uuid>', methods=['POST'])
+    def scan_qr(uuid):
+        qr_entry = QRCode.query.filter_by(uuid=uuid).first()
         if not qr_entry or qr_entry.status != "pending":
             return jsonify({"message": "Invalid or already scanned QR code."}), 400
 
@@ -162,7 +156,7 @@ def create_app():
         db.session.delete(qr_entry)
         db.session.commit()
 
-        os.remove(f"assets/qrcodes/{scanned_uuid}.png")
+        os.remove(f"assets/qrcodes/{uuid}.png")
 
         return jsonify({"message": "QR code scanned and deleted successfully"})
 
