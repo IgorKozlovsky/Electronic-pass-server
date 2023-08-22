@@ -123,7 +123,8 @@ def create_app():
         img_path = f"assets/qrcodes/{unique_id}.png"
         img.save(img_path)
 
-        new_qr = QRCode(uuid=unique_id, student_id=request.json['student_id'], created_at=datetime.utcnow())
+        new_qr = QRCode(
+            uuid=unique_id, student_id=request.json['student_id'], created_at=datetime.utcnow())
         db.session.add(new_qr)
         db.session.commit()
 
