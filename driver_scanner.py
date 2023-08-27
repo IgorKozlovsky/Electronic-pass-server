@@ -15,7 +15,7 @@ def on_keyboard_event(event):
         if current_input.startswith("SCAN;"):
             uuid_value = current_input[5:]
             response = requests.post(
-                f'http://127.0.0.1:5000/scan_qr/{uuid_value}')
+                f'http://192.168.0.106:5000/scan_qr/{uuid_value}')
             print(response.json())
         current_input = ""
     return True

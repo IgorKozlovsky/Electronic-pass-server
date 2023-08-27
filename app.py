@@ -7,7 +7,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from utils.errors import BadRequestException
 from utils.http import bad_request, not_found, not_allowed, internal_error
-from flask import request, jsonify
+from flask import request, jsonify, send_file, current_app
 from models.models import Student, QRCode
 from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
@@ -25,7 +25,7 @@ load_dotenv()
 
 def remove_expired_qrcodes():
     with app.app_context():
-        expiration_time = datetime.utcnow() - timedelta(seconds=3000)
+        expiration_time = datetime.utcnow() - timedelta(seconds=30)
         expired_qrs = QRCode.query.filter(
             QRCode.created_at < expiration_time).all()
 
@@ -107,10 +107,11 @@ def create_app():
 
         return jsonify({"message": "Students created successfully"}), 201
 
-    @app.route('/student/<int:student_id>', methods=['GET'])
+    @app.route('/student/<student_id>', methods=['GET'])
     def get_student_by_id(student_id):
-        student = Student.query.get(student_id)
+        print(student_id)
 
+        student = Student.query.get(student_id)
         if not student:
             return jsonify({"message": "Student not found"}), 404
 
@@ -127,6 +128,7 @@ def create_app():
         student_id = request.json['student_id']
 
         existing_qr = QRCode.query.filter_by(student_id=student_id).first()
+
         if existing_qr:
             os.remove(f"assets/qrcodes/{existing_qr.uuid}.png")
             db.session.delete(existing_qr)
@@ -143,7 +145,7 @@ def create_app():
         db.session.add(new_qr)
         db.session.commit()
 
-        return jsonify({"message": "QR code generated", "qr_path": img_path, "uuid": unique_id}), 200
+        return send_file(img_path, mimetype='image/png'), 200
 
     @app.route('/scan_qr/<uuid>', methods=['POST'])
     def scan_qr(uuid):
@@ -151,12 +153,18 @@ def create_app():
         if not qr_entry or qr_entry.status != "pending":
             return jsonify({"message": "Invalid or already scanned QR code."}), 400
 
+        student = Student.query.get(qr_entry.student_id)
+        if not student:
+            return jsonify({"message": "Student not found"}), 404
+
         qr_entry.status = "scanned"
         qr_entry.scanned_at = datetime.utcnow()
         db.session.delete(qr_entry)
         db.session.commit()
 
         os.remove(f"assets/qrcodes/{uuid}.png")
+        q = current_app.config['queue']
+        q.put(qr_entry.student_id)
 
         return jsonify({"message": "QR code scanned and deleted successfully"})
 
