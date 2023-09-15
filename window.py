@@ -1,6 +1,9 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 import tkinter.font as font
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class StudentInfoWindow(tk.Tk):
@@ -16,7 +19,7 @@ class StudentInfoWindow(tk.Tk):
             self.labels.append(label)
 
     def update_info(self, student):
-        image_path = f"assets/images/{student.photo}"
+        image_path = os.path.join(BASE_DIR, f"assets/images/{student.photo}")
         img = Image.open(image_path)
 
         new_width = 300

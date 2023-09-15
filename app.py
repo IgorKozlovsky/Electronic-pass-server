@@ -22,6 +22,8 @@ login_manager = LoginManager()
 
 load_dotenv()
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def remove_expired_qrcodes():
     with app.app_context():
@@ -30,7 +32,7 @@ def remove_expired_qrcodes():
             QRCode.created_at < expiration_time).all()
 
         for qr in expired_qrs:
-            file_path = f"assets/qrcodes/{qr.uuid}.png"
+            file_path = os.path.join(BASE_DIR, f"assets/qrcodes/{qr.uuid}.png")
 
             if os.path.exists(file_path):
                 os.remove(file_path)
@@ -66,7 +68,7 @@ def create_app():
         student = Student.query.filter_by(login=data.get("login")).first()
 
         if student and student.check_password(data.get("password")):
-            with open(f"assets/images/{student.photo}", "rb") as img_file:
+            with open(os.path.join(BASE_DIR, f"assets/images/{student.photo}"), "rb") as img_file:
                 image_data = base64.b64encode(img_file.read()).decode('utf-8')
 
             student_data = student.as_dict()
@@ -115,7 +117,7 @@ def create_app():
         if not student:
             return jsonify({"message": "Student not found"}), 404
 
-        with open(f"assets/images/{student.photo}", "rb") as img_file:
+        with open(os.path.join(BASE_DIR, f"assets/images/{student.photo}"), "rb") as img_file:
             image_data = base64.b64encode(img_file.read()).decode('utf-8')
 
         student_data = student.as_dict()
@@ -130,14 +132,15 @@ def create_app():
         existing_qr = QRCode.query.filter_by(student_id=student_id).first()
 
         if existing_qr:
-            os.remove(f"assets/qrcodes/{existing_qr.uuid}.png")
+            os.remove(os.path.join(
+                BASE_DIR, f"assets/qrcodes/{existing_qr.uuid}.png"))
             db.session.delete(existing_qr)
             db.session.commit()
 
         unique_id = str(uuid.uuid4())
         img = qrcode.make(unique_id)
 
-        img_path = f"assets/qrcodes/{unique_id}.png"
+        img_path = os.path.join(BASE_DIR, f"assets/qrcodes/{unique_id}.png")
         img.save(img_path)
 
         new_qr = QRCode(
@@ -162,7 +165,7 @@ def create_app():
         db.session.delete(qr_entry)
         db.session.commit()
 
-        os.remove(f"assets/qrcodes/{uuid}.png")
+        os.remove(os.path.join(BASE_DIR, f"assets/qrcodes/{uuid}.png"))
         q = current_app.config['queue']
         q.put(qr_entry.student_id)
 

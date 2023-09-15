@@ -1,0 +1,12 @@
+version: "3"
+services:
+  web:
+    build: .
+    command: python server.py
+    ports:
+      - "5000:5000"
+  driver:
+    build: .
+    command: python driver.py
+    stdin_open: true
+    tty: true
