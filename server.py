@@ -25,7 +25,7 @@ def run_tkinter_app(app, window, q):
 def run_flask_app(app, queue):
     with app.app_context():
         app.config['queue'] = queue
-        app.run(debug=False, host='192.168.0.102')
+        app.run(debug=False, host='192.168.0.106')
 
 
 if __name__ == '__main__':
